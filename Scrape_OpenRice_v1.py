@@ -1,20 +1,11 @@
-﻿from selenium import webdriver
-#from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.support import expected_conditions as EC
+﻿from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait as wait
 from selenium.webdriver.common.by import By
-#from selenium.webdriver.common.keys import Keys
-#from selenium.webdriver.support.ui import Select
-#from selenium.common.exceptions import WebDriverException
-#from selenium.webdriver.common.action_chains import ActionChains
 import undetected_chromedriver as uc
 import time
-import csv
 import os
 from datetime import datetime
 import pandas as pd
-import numpy as np
-#import unidecode
 import warnings
 import re
 import sys
@@ -25,7 +16,7 @@ def initialize_bot():
 
     # Setting up chrome driver for the bot
     chrome_options = uc.ChromeOptions()
-    #chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless')
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
     chrome_options.add_argument('--log-level=3')
     chrome_options.add_argument("--enable-javascript")
@@ -44,13 +35,27 @@ def initialize_bot():
 
     return driver
 
-def scrape_restaurants(driver, output1, output2):
+def scrape_restaurants(driver, output1, output2, page, data, reviews):
 
-    #keys = ["name_chinese", "name_english",	"price_range",	"category",	"address",	"region",	"phone_no",	"introduction",	"face_smiley",	"face_ok",	"face_sad",	"rating",	"restaurantmark_number",	"openrice_link"]
+    print('-'*75)
+    if 'new-restaurants' in page:
+        print('Scraping The New Restaurants Links ...')
+        res_type = 'New'
+    elif 'best-rating' in page:
+        print('Scraping The Best Rating Restaurants Links ...')
+        res_type = 'Best Rating'
+    elif 'most-popular' in page:
+        print('Scraping The Most Popular Restaurants Links ...')
+        res_type = 'Most Popular'
+    elif 'most-bookmarked' in page:
+        print('Scraping The Most Bookmarked Restaurants Links ...')
+        res_type = 'Most Bookmarked'
+    else:
+        print('Scraping The Best Dessert Restaurants Links ...')
+        res_type = 'Best Dessert'
 
-    print('Scraping New Restaurants Links ...')
-    print('-'*100)
-    driver.get("https://www.openrice.com/en/hongkong/new-restaurants")
+    print('-'*75)
+    driver.get(page)
     time.sleep(3)
 
     # processing the lazy loading of the restaurants
@@ -68,7 +73,11 @@ def scrape_restaurants(driver, output1, output2):
     # getting the full restaurants list
     links = []
     # scraping restaurants urls
-    restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.poi-list-cell-info-title")))
+    if 'new-restaurants' in page:
+        selector =  "a.poi-list-cell-info-title"
+    else:
+        selector = 'a.chart-poi-name'
+    restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
     nres = 0
     for res in restaurants:
         try:
@@ -78,9 +87,6 @@ def scrape_restaurants(driver, output1, output2):
             links.append(link)
         except:
             pass
-
-    data = pd.DataFrame()
-    reviews = pd.DataFrame()
 
     # scraping restaurants details
     print('-'*75)
@@ -98,11 +104,32 @@ def scrape_restaurants(driver, output1, output2):
             try:
                 name_ch = wait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span.name"))).get_attribute('textContent').strip()
                 name_en = wait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.smaller-font-name"))).get_attribute('textContent').strip()
+                # check if the chinese name is English 
+                asian = re.findall(r'[\u3131-\ucb4c]+',name_ch)
+                # English name is found in the chinese name
+                if not asian and name_en == '':
+                    name_en = name_ch
+                    name_ch = ''
+                # English and Chinese names are in one field
+                elif asian and name_en == '':
+                    name = ''.join(asian)
+                    name_en = name_ch.replace(name, '')
+                    name_ch = name 
+
+                ascii_ = re.findall(r'[ -~]',name_en)
+                # English and Chinese names are in one field
+                if ascii_ and name_ch == '':
+                    name = ''.join(ascii_)
+                    name_ch = name_en.replace(name, '')
+                    name_en = name    
+                # Chinese name is found in the English name
+                elif ascii_ and name_ch != '':
+                    name_en = ''.join(ascii_)
             except:
                 print(f'Warning: failed to scrape the name for restaurant: {link}')               
                 
             details['Name_Chinese'] = name_ch
-            details['Name_English'] = name_en
+            details['Name_English'] = name_en.replace('(' ,'').replace(')', '').strip()
                                     
             # Price range 
             price = ''
@@ -117,7 +144,7 @@ def scrape_restaurants(driver, output1, output2):
             # Restaurant category 
             cat = ''
             try:
-                cat = wait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[class='header-poi-categories dot-separator']"))).get_attribute('textContent').replace('\n', '').strip()
+                cat = wait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[class='header-poi-categories dot-separator']"))).get_attribute('textContent').replace('\n', '').strip().replace('                        ', ', ')
             except:
                 pass          
                 
@@ -196,10 +223,14 @@ def scrape_restaurants(driver, output1, output2):
                 pass          
                 
             details['Bookmarks'] = books                                
-            details['Openrice_Link'] = link  
-            details['Rank'] = ''  
+            details['Openrice_Link'] = link 
+            if 'new-restaurants' in page:
+                details['Rank'] = ''
+            else:
+                details['Rank'] = i+1
 
-            # scraping restaurants reviews
+            details['Restaurant_Type'] = res_type
+            ## scraping restaurants reviews
             try:
                 url = link + '/reviews'
                 driver.get(url)
@@ -211,7 +242,10 @@ def scrape_restaurants(driver, output1, output2):
                             date = wait(sec, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span[itemprop='datepublished']"))).get_attribute('textContent').strip()
                             nviews = wait(sec, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span[class='view-count-container']"))).get_attribute('textContent').split()[0].strip()
                             des = wait(sec, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[itemprop='description']"))).get_attribute('textContent').strip()
-                            review['Restaurant_Name'] = name_ch
+                            if name_ch != '':
+                                review['Restaurant_Name'] = name_ch
+                            else:
+                                review['Restaurant_Name'] = name_en
                             review['Review_Title'] = title
                             review['Review_Date'] = date
                             review['Review_Views'] = nviews
@@ -233,22 +267,20 @@ def scrape_restaurants(driver, output1, output2):
             # appending the output to the datafame       
             data = data.append([details.copy()])
             # saving data to csv file each 100 links
-            if np.mod(i+1, 50) == 0:
-                print('Outputting scraped data ...')
-                data.to_excel(output1, index=False)
-                reviews.to_excel(output2, index=False)
+            #if np.mod(i+1, 50) == 0:
+            #    print('Outputting scraped data ...')
+            #    data.to_excel(output1, index=False)
+            #    reviews.to_excel(output2, index=False)
 
         except Exception as err:
-            data.to_excel(output1, index=False)
-            reviews.to_excel(output2, index=False)
-            print(str(err))
+            pass
+            #print(str(err))
            
     # output to excel
     data.to_excel(output1, index=False)
     reviews.to_excel(output2, index=False)
+    return data, reviews
     
-
-
 def initialize_output():
 
     stamp = datetime.now().strftime("%d_%m_%Y_%H_%M")
@@ -270,35 +302,37 @@ def initialize_output():
 
     return output1, output2
 
-
 def main():
-
+    print('Initializing The Bot ...')
     freeze_support()
     start = time.time()
     output1, output2 = initialize_output()
-    while True:
+    homepages = ["https://www.openrice.com/en/hongkong/chart/best-rating", "https://www.openrice.com/en/hongkong/chart/most-popular", "https://www.openrice.com/en/hongkong/chart/most-bookmarked", "https://www.openrice.com/en/hongkong/chart/best-dessert", "https://www.openrice.com/en/hongkong/new-restaurants"]
+    data = pd.DataFrame()
+    reviews = pd.DataFrame()
+    try:
+        driver = initialize_bot()
+    except Exception as err:
+        print('Failed to initialize the Chrome driver due to the following error:\n')
+        print(str(err))
+        print('-'*75)
+        input('Press any key to exit.')
+        sys.exit()
+    for page in homepages:
         try:
-            try:
-                driver = initialize_bot()
-            except Exception as err:
-                print('Failed to initialize the Chrome driver due to the following error:\n')
-                print(str(err))
-                print('-'*75)
-                input('Press any key to exit.')
-                sys.exit()
-            scrape_restaurants(driver, output1, output2)
-            driver.quit()
-            break
+            data, reviews = scrape_restaurants(driver, output1, output2, page, data, reviews)
         except Exception as err: 
-            print(f'Error: {err}')
+            print(f'Error:\n')
+            print(str(err))
             driver.quit()
             time.sleep(5)
+            driver = initialize_bot()
 
+    driver.quit()
     print('-'*100)
     elapsed_time = round(((time.time() - start)/60), 2)
-    input(f'Process is completed successfully in {elapsed_time} mins! Press any key to exit.')
+    input(f'Process is completed in {elapsed_time} mins, Press any key to exit.')
 
 if __name__ == '__main__':
 
     main()
-
