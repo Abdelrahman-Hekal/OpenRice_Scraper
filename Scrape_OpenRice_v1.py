@@ -322,8 +322,8 @@ def main():
         try:
             data, reviews = scrape_restaurants(driver, output1, output2, page, data, reviews)
         except Exception as err: 
-            print(f'Error:\n')
-            print(str(err))
+            #print(f'Error:\n')
+            #print(str(err))
             driver.quit()
             time.sleep(5)
             driver = initialize_bot()
