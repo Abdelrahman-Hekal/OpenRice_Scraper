@@ -1,4 +1,7 @@
-﻿from selenium.webdriver.support import expected_conditions as EC
+﻿from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service as ChromeService 
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait as wait
 from selenium.webdriver.common.by import By
 import undetected_chromedriver as uc
@@ -9,6 +12,7 @@ import pandas as pd
 import warnings
 import re
 import sys
+import xlsxwriter
 from multiprocessing import freeze_support
 warnings.filterwarnings('ignore')
 
@@ -16,6 +20,7 @@ def initialize_bot():
 
     # Setting up chrome driver for the bot
     chrome_options = uc.ChromeOptions()
+    #chrome_options  = webdriver.ChromeOptions()
     chrome_options.add_argument('--headless')
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
     chrome_options.add_argument('--log-level=3')
@@ -24,18 +29,27 @@ def initialize_bot():
     chrome_options.add_argument("--incognito")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.page_load_strategy = 'normal'
+    chrome_options.page_load_strategy = 'eager'
     # disable location prompts & disable images loading
     prefs = {"profile.default_content_setting_values.geolocation": 2, "profile.managed_default_content_settings.images": 2}
     chrome_options.add_experimental_option("prefs", prefs)
-    driver = uc.Chrome(version_main=108, options=chrome_options)
+
+    # installing the chrome driver
+    driver_path = ChromeDriverManager().install()
+    chrome_service = ChromeService(driver_path)
+    # configuring the driver
+    driver = webdriver.Chrome(options=chrome_options, service=chrome_service)
+    ver = int(driver.capabilities['chrome']['chromedriverVersion'].split('.')[0])
+    driver.quit()
+    driver = uc.Chrome(version_main = ver, options=chrome_options)
+    
     driver.set_window_size(1920, 1080, driver.window_handles[0])
     driver.maximize_window()
     driver.set_page_load_timeout(300)
 
     return driver
 
-def scrape_restaurants(driver, output1, output2, page, data, reviews):
+def scrape_restaurants(driver, output1, output2, page):
 
     print('-'*75)
     if 'new-restaurants' in page:
@@ -93,6 +107,8 @@ def scrape_restaurants(driver, output1, output2, page, data, reviews):
     print('Scraping Restaurants Details...')
     print('-'*75)
     n = len(links)
+    data = pd.DataFrame()
+    reviews = pd.DataFrame()
     for i, link in enumerate(links):
         try:
             driver.get(link)           
@@ -277,10 +293,14 @@ def scrape_restaurants(driver, output1, output2, page, data, reviews):
             #print(str(err))
            
     # output to excel
-    data.to_excel(output1, index=False)
-    reviews.to_excel(output2, index=False)
-    return data, reviews
-    
+    df1 = pd.read_excel(output1)
+    df2 = pd.read_excel(output2)
+    df1 = df1.append(data)
+    df2 = df2.append(reviews)
+    df1.to_excel(output1, index=False)
+    df2.to_excel(output2, index=False)
+ 
+
 def initialize_output():
 
     stamp = datetime.now().strftime("%d_%m_%Y_%H_%M")
@@ -298,7 +318,15 @@ def initialize_output():
         output2 = path.replace('\\', '/') + "/" + file2
     else:
         output1 = path + "\\" + file1
-        output2 = path + "\\" + file2 
+        output2 = path + "\\" + file2   
+
+    # Create an new Excel file and add a worksheet.
+    workbook1 = xlsxwriter.Workbook(output1)
+    worksheet = workbook1.add_worksheet()
+    workbook1.close()    
+    workbook2 = xlsxwriter.Workbook(output2)
+    worksheet = workbook2.add_worksheet()
+    workbook2.close()
 
     return output1, output2
 
@@ -308,8 +336,7 @@ def main():
     start = time.time()
     output1, output2 = initialize_output()
     homepages = ["https://www.openrice.com/en/hongkong/chart/best-rating", "https://www.openrice.com/en/hongkong/chart/most-popular", "https://www.openrice.com/en/hongkong/chart/most-bookmarked", "https://www.openrice.com/en/hongkong/chart/best-dessert", "https://www.openrice.com/en/hongkong/new-restaurants"]
-    data = pd.DataFrame()
-    reviews = pd.DataFrame()
+    
     try:
         driver = initialize_bot()
     except Exception as err:
@@ -320,7 +347,7 @@ def main():
         sys.exit()
     for page in homepages:
         try:
-            data, reviews = scrape_restaurants(driver, output1, output2, page, data, reviews)
+            scrape_restaurants(driver, output1, output2, page)
         except Exception as err: 
             #print(f'Error:\n')
             #print(str(err))
