@@ -116,7 +116,7 @@ def scrape_restaurants(driver, output1, output2, page, settings):
     n = len(links)
     data = pd.DataFrame()
     reviews = pd.DataFrame()
-    for i, link in enumerate(links[:3]):
+    for i, link in enumerate(links):
         try:
             driver.get(link)           
             details, review = {}, {}
