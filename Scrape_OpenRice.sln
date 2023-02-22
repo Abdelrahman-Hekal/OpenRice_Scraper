@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32825.248
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Scrape_OpenRice", "Scrape_OpenRice.pyproj", "{DEF9173C-3C15-4075-9A95-790DC1D2E2D3}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "OpenRice_Scraper", "OpenRice_Scraper.pyproj", "{DEF9173C-3C15-4075-9A95-790DC1D2E2D3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
