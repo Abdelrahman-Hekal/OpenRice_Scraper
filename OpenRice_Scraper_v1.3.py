@@ -53,70 +53,83 @@ def initialize_bot():
 
 def scrape_restaurants(driver, output1, output2, page, settings):
 
-    print('-'*75)
-    if 'new-restaurants' in page:
+    if isinstance(page, dict):
+        print('-'*75)
+        res_type = list(page.keys())[0]
+        print(f'Scraping The {res_type} Restaurants ...')
+        print('-'*75)      
+    elif 'new-restaurants' in page:
         if settings["New Restaurants"] == 0: return
-        print('Scraping The New Restaurants Links ...')
+        print('-'*75)
+        print('Scraping The New Restaurants ...')
         res_type = 'New'
     elif 'best-rating' in page:
         if settings["Best Rated Restaurants"] == 0: return
-        print('Scraping The Best Rating Restaurants Links ...')
+        print('-'*75)
+        print('Scraping The Best Rating Restaurants ...')
         res_type = 'Best Rating'
     elif 'most-popular' in page:
         if settings["Most Popular Restaurants"] == 0: return
-        print('Scraping The Most Popular Restaurants Links ...')
+        print('-'*75)
+        print('Scraping The Most Popular Restaurants ...')
         res_type = 'Most Popular'
     elif 'most-bookmarked' in page:
         if settings["Most Bookmarked Restaurants"] == 0: return
-        print('Scraping The Most Bookmarked Restaurants Links ...')
+        print('-'*75)
+        print('Scraping The Most Bookmarked Restaurants ...')
         res_type = 'Most Bookmarked'
-    else:
+    elif 'best-dessert' in page:
         if settings["Best Dessert Restaurants"] == 0: return
-        print('Scraping The Best Dessert Restaurants Links ...')
+        print('-'*75)
+        print('Scraping The Best Dessert Restaurants ...')
         res_type = 'Best Dessert'
 
-    print('-'*75)
-    driver.get(page)
-    time.sleep(3)
-
-    res_limit = settings['Restaurants Limit']
-    # processing the lazy loading of the restaurants
-    while True:  
-        try:
-            height1 = driver.execute_script("return document.body.scrollHeight")
-            driver.execute_script(f"window.scrollTo(0, {height1})")
-            time.sleep(5)
-            height2 = driver.execute_script("return document.body.scrollHeight")
-            restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
-            if len(restaurants) >= res_limit: 
-                break
-            if int(height2) == int(height1):
-                break
-        except Exception as err:
-            break
-
-    # getting the full restaurants list
     links = []
-    # scraping restaurants urls
-    if 'new-restaurants' in page:
-        selector =  "a.poi-list-cell-info-title"
+    if isinstance(page, dict):
+        links = page[res_type]
     else:
-        selector = 'a.chart-poi-name'
-    restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))[:res_limit]
-    nres = 0
-    for res in restaurants:
-        try:
-            nres += 1
-            print(f'Scraping the url for restaurant {nres}')
-            link = res.get_attribute('href')
-            links.append(link)
-        except:
-            pass
+        print('-'*75)
+        driver.get(page)
+        time.sleep(3)
 
-    # scraping restaurants details
-    print('-'*75)
-    print('Scraping Restaurants Details...')
-    print('-'*75)
+        res_limit = settings['Restaurants Limit']
+        # processing the lazy loading of the restaurants
+        while True:  
+            try:
+                height1 = driver.execute_script("return document.body.scrollHeight")
+                driver.execute_script(f"window.scrollTo(0, {height1})")
+                time.sleep(5)
+                height2 = driver.execute_script("return document.body.scrollHeight")
+                restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
+                if len(restaurants) >= res_limit: 
+                    break
+                if int(height2) == int(height1):
+                    break
+            except Exception as err:
+                break
+
+        # getting the full restaurants list
+        # scraping restaurants urls
+        if 'new-restaurants' in page:
+            selector =  "a.poi-list-cell-info-title"
+        else:
+            selector = 'a.chart-poi-name'
+        restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))[:res_limit]
+        nres = 0
+        for res in restaurants:
+            try:
+                nres += 1
+                print(f'Scraping the url for restaurant {nres}')
+                link = res.get_attribute('href')
+                links.append(link)
+            except:
+                pass
+
+        # scraping restaurants details
+        #print('-'*75)
+        print('Scraping Restaurants Details')
+        #print('-'*75)
+
     n = len(links)
     data = pd.DataFrame()
     reviews = pd.DataFrame()
@@ -251,7 +264,8 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                 
             details['Bookmarks'] = books                                
             details['Openrice_Link'] = link 
-            if 'new-restaurants' in page:
+
+            if res_type == 'New' or res_type == 'User Input' or res_type == 'Search Result':
                 details['Rank'] = ''
             else:
                 details['Rank'] = i+1
@@ -404,6 +418,48 @@ def scrape_restaurants(driver, output1, output2, page, settings):
     df1.to_excel(output1, index=False)
     df2.to_excel(output2, index=False)
  
+def search_restaurants(driver, res_search, settings):
+
+    res_limit = settings['Restaurants Limit']
+    results = []
+    for keywords in res_search:
+        name = keywords[0]
+        loc = keywords[1]
+        if name != '' and loc != '':
+            driver.get(f'https://www.openrice.com/en/hongkong/restaurants?what={name}&where={loc}')
+        elif name != '' and loc == '':
+            driver.get(f'https://www.openrice.com/en/hongkong/restaurants?what={name}')
+        elif loc != '' and name == '':
+            driver.get(f'https://www.openrice.com/en/hongkong/restaurants?where={loc}')
+
+        exit = False
+        nres = 0
+        while True:
+            try:
+                restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "h2.title-name")))
+                for res in restaurants:
+                    try:
+                        nres += 1
+                        link = wait(res, 2).until(EC.presence_of_element_located((By.TAG_NAME, "a"))).get_attribute('href')
+                        results.append(link)
+                        if nres == res_limit:
+                            exit = True
+                            break
+                    except:
+                        pass
+
+                if exit: break
+
+                # moving to the next results page
+                try:
+                    url = wait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[class='pagination-button next js-next']"))).get_attribute('href')
+                    driver.get(url)
+                except:
+                    break
+            except:
+                break
+
+    return results
 
 def initialize_output():
 
@@ -435,7 +491,9 @@ def initialize_output():
     return output1, output2
 
 def get_inputs():
-
+ 
+    print('Processing The Settings Sheet ...')
+    print('-'*75)
     # assuming the inputs to be in the same script directory
     path = os.getcwd()
     if '//' in path:
@@ -449,44 +507,60 @@ def get_inputs():
         sys.exit(1)
     try:
         settings = {}
+        res_urls, res_search = [], []
         #with open(path, "r") as f:
         #    reader = csv.reader(f)
         #    for line in reader:
         #        settings[line[0]] = int(line[1])
         df = pd.read_excel(path)
         cols  = df.columns
-        settings[cols[0]] = cols[1]
+        for col in cols:
+            df[col] = df[col].astype(str)
+
         inds = df.index
         for ind in inds:
             row = df.iloc[ind]
-            settings[row.iloc[0]] = row.iloc[1]
+            name, loc = '', ''
+            for col in cols:
+                if row[col] == 'nan': continue
+                elif col == 'Restaurant Link':
+                    res_urls.append(row[col])
+                elif col == 'Restaurant Name':
+                    name = row[col]
+                elif col == 'Restaurant Location':
+                    loc = row[col]
+                    res_search.append((name, loc))
+                else:
+                    settings[col] = row[col]
     except:
         print('Error: Failed to process the settings sheet')
         input('Press any key to exit')
         sys.exit(1)
 
     # checking the settings dictionary
-    keys = ["New Restaurants", "Best Rated Restaurants", "Most Popular Restaurants", "Most Bookmarked Restaurants", "Best Dessert Restaurants", "Scrape Reviews", "Reviews Limit"]
+    keys = ["New Restaurants", "Best Rated Restaurants", "Most Popular Restaurants", "Most Bookmarked Restaurants", "Best Dessert Restaurants", "Scrape Reviews", "Reviews Limit", "Restaurants Limit"]
     for key in keys:
         if key not in settings.keys():
-            print("Warning: the setting '{key}' is not present in the settings file")
+            print(f"Warning: the setting '{key}' is not present in the settings file")
             settings[key] = 0
         try:
-            settings[key] = int(settings[key])
+            settings[key] = int(float(settings[key]))
         except:
-            input("Error: Incorrect value for '{key}', values must be numeric only, press an key to exit.")
+            input(f"Error: Incorrect value for '{key}', values must be numeric only, press an key to exit.")
             sys.exit(1)
 
-    return settings
+    return settings, res_urls, res_search
 
 def main():
-    print('Initializing The Bot ...')
+   
     freeze_support()
     start = time.time()
-    settings = get_inputs()
+    settings, res_urls, res_search = get_inputs()
     output1, output2 = initialize_output()
     homepages = ["https://www.openrice.com/en/hongkong/chart/best-rating", "https://www.openrice.com/en/hongkong/chart/most-popular", "https://www.openrice.com/en/hongkong/chart/most-bookmarked", "https://www.openrice.com/en/hongkong/chart/best-dessert", "https://www.openrice.com/en/hongkong/new-restaurants"]
-    
+
+    print('Initializing The Bot ...')
+    print('-'*75)
     try:
         driver = initialize_bot()
     except Exception as err:
@@ -495,6 +569,14 @@ def main():
         print('-'*75)
         input('Press any key to exit.')
         sys.exit()
+   
+    print('Searching The Site By The User Given Keywords')
+    results = search_restaurants(driver, res_search, settings)
+    if res_urls:
+        homepages.append({'User Input':res_urls})
+    if results:
+        homepages.append({'Search Result':results})
+
     for page in homepages:
         try:
             scrape_restaurants(driver, output1, output2, page, settings)

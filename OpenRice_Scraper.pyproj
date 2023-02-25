@@ -5,7 +5,7 @@
     <ProjectGuid>def9173c-3c15-4075-9a95-790dc1d2e2d3</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>Scrape_OpenRice_v1.2.py</StartupFile>
+    <StartupFile>OpenRice_Scraper_v1.3.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,7 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Scrape_OpenRice_v1.2.py" />
+    <Compile Include="OpenRice_Scraper_v1.3.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
