@@ -134,7 +134,14 @@ def scrape_restaurants(driver, output1, output2, page, settings):
     data = pd.DataFrame()
     reviews = pd.DataFrame()
     for i, link in enumerate(links):
+        search_name, search_loc = ' ', ' '
         try:
+            if res_type == 'Search Result':
+                search_name = link[1]
+                search_loc = link[2]
+                link = link[0]
+
+
             driver.get(link)           
             details, review = {}, {}
             print(f'Scraping the details of restaurant {i+1}\{n}')
@@ -270,7 +277,10 @@ def scrape_restaurants(driver, output1, output2, page, settings):
             else:
                 details['Rank'] = i+1
 
-            details['Restaurant_Type'] = res_type
+            if res_type == 'Search Result':
+                details['Restaurant_Type'] = res_type + f'-{search_name}, {search_loc}'
+            else:
+                details['Restaurant_Type'] = res_type
 
             ## scraping restaurants reviews
             if settings["Scrape Reviews"] != 0:
@@ -441,7 +451,7 @@ def search_restaurants(driver, res_search, settings):
                     try:
                         nres += 1
                         link = wait(res, 2).until(EC.presence_of_element_located((By.TAG_NAME, "a"))).get_attribute('href')
-                        results.append(link)
+                        results.append((link, name, loc))
                         if nres == res_limit:
                             exit = True
                             break
@@ -496,10 +506,10 @@ def get_inputs():
     print('-'*75)
     # assuming the inputs to be in the same script directory
     path = os.getcwd()
-    if '//' in path:
-        path += '//openrice_settings.xlsx'
+    if '\\' in path:
+        path += '\\openrice_settings.xlsx'
     else:
-        path += '\openrice_settings.xlsx'
+        path += '/openrice_settings.xlsx'
 
     if not os.path.isfile(path):
         print('Error: Missing the settings file "openrice_settings.xlsx"')
