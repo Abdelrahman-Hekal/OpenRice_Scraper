@@ -449,10 +449,10 @@ def search_restaurants(driver, res_search, settings):
                 restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "h2.title-name")))
                 for res in restaurants:
                     try:
-                        nres += 1
                         link = wait(res, 2).until(EC.presence_of_element_located((By.TAG_NAME, "a"))).get_attribute('href')
                         if 'restaurants?chainId=' in link: continue
                         results.append((link, name, loc))
+                        nres += 1
                         if nres == res_limit:
                             exit = True
                             break
