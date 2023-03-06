@@ -141,7 +141,6 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                 search_loc = link[2]
                 link = link[0]
 
-
             driver.get(link)           
             details, review = {}, {}
             print(f'Scraping the details of restaurant {i+1}\{n}')
@@ -272,7 +271,7 @@ def scrape_restaurants(driver, output1, output2, page, settings):
             details['Bookmarks'] = books                                
             details['Openrice_Link'] = link 
 
-            if res_type == 'New' or res_type == 'User Input' or res_type == 'Search Result':
+            if res_type == 'New' or res_type == 'User Input' or res_type == 'Search Result' or 'Search Link' in res_type:
                 details['Rank'] = ''
             else:
                 details['Rank'] = i+1
@@ -428,6 +427,46 @@ def scrape_restaurants(driver, output1, output2, page, settings):
     df1.to_excel(output1, index=False)
     df2.to_excel(output2, index=False)
  
+def get_restaurants_links(driver, urls, settings):
+
+    res_limit = settings['Restaurants Limit']
+    links = {}
+    
+    for i, url in enumerate(urls):
+        driver.get(url)
+        exit = False
+        links[f"Search Link {i+1}"] = []
+        nres = 0
+        while True:
+            try:
+                restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "h2.title-name")))
+                for res in restaurants:
+                    try:
+                        link = wait(res, 2).until(EC.presence_of_element_located((By.TAG_NAME, "a"))).get_attribute('href')
+                        if 'restaurants?chainId=' in link: continue
+                        links[f"Search Link {i+1}"].append(link)
+                        nres += 1
+                        if nres == res_limit:
+                            exit = True
+                            break
+                    except:
+                        pass
+
+                if exit: break
+
+                # moving to the next results page
+                try:
+                    url = wait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[class='pagination-button next js-next']"))).get_attribute('href')
+                    driver.get(url)
+                except:
+                    break
+            except:
+                break
+
+    return links
+
+
+
 def search_restaurants(driver, res_search, settings):
 
     res_limit = settings['Restaurants Limit']
@@ -518,11 +557,7 @@ def get_inputs():
         sys.exit(1)
     try:
         settings = {}
-        res_urls, res_search = [], []
-        #with open(path, "r") as f:
-        #    reader = csv.reader(f)
-        #    for line in reader:
-        #        settings[line[0]] = int(line[1])
+        res_urls, res_search, search_urls = [], [], []
         df = pd.read_excel(path)
         cols  = df.columns
         for col in cols:
@@ -535,7 +570,10 @@ def get_inputs():
             for col in cols:
                 if row[col] == 'nan': continue
                 elif col == 'Restaurant Link':
-                    res_urls.append(row[col])
+                    if 'restaurants' in row[col]:
+                        search_urls.append(row[col])
+                    else:
+                        res_urls.append(row[col])
                 elif col == 'Restaurant Name':
                     name = row[col]
                 elif col == 'Restaurant Location':
@@ -560,13 +598,13 @@ def get_inputs():
             input(f"Error: Incorrect value for '{key}', values must be numeric only, press an key to exit.")
             sys.exit(1)
 
-    return settings, res_urls, res_search
+    return settings, res_urls, res_search, search_urls
 
 def main():
    
     freeze_support()
     start = time.time()
-    settings, res_urls, res_search = get_inputs()
+    settings, res_urls, res_search, urls = get_inputs()
     output1, output2 = initialize_output()
     homepages = ["https://www.openrice.com/en/hongkong/chart/best-rating", "https://www.openrice.com/en/hongkong/chart/most-popular", "https://www.openrice.com/en/hongkong/chart/most-bookmarked", "https://www.openrice.com/en/hongkong/chart/best-dessert", "https://www.openrice.com/en/hongkong/new-restaurants"]
 
@@ -581,8 +619,14 @@ def main():
         input('Press any key to exit.')
         sys.exit()
    
-    print('Searching The Site By The User Given Keywords')
+    print('Searching The Site By The User Input Keywords')
+    print('-'*75)
     results = search_restaurants(driver, res_search, settings)
+    print('Getting The Restaurants Links From The User Input Search URLs')
+    if urls:
+        search_urls = get_restaurants_links(driver, urls, settings)
+        for key, value in search_urls.items():
+            homepages.append({key:value})
     if res_urls:
         homepages.append({'User Input':res_urls})
     if results:
