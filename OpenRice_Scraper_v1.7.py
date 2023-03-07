@@ -152,6 +152,7 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                 name_en = wait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.smaller-font-name"))).get_attribute('textContent').strip()
                 # check if the chinese name is English 
                 asian = re.findall(r'[\u3131-\ucb4c]+',name_ch)
+                asian2 = re.findall(r'[\u3131-\ucb4c]+',name_en)
                 # English name is found in the chinese name
                 if not asian and name_en == '':
                     name_en = name_ch
@@ -160,17 +161,23 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                 elif asian and name_en == '':
                     name = ''.join(asian)
                     name_en = name_ch.replace(name, '')
+                    name_ch = name                 
+                                   
+                # English and Chinese names are in one field
+                elif asian2 and name_ch == '':
+                    name = ''.join(asian2)
+                    name_en = name_en.replace(name, '')
                     name_ch = name 
 
-                ascii_ = re.findall(r'[ -~]',name_en)
-                # English and Chinese names are in one field
-                if ascii_ and name_ch == '':
-                    name = ''.join(ascii_)
-                    name_ch = name_en.replace(name, '')
-                    name_en = name    
-                # Chinese name is found in the English name
-                elif ascii_ and name_ch != '':
-                    name_en = ''.join(ascii_)
+                #ascii_ = re.findall(r'[ -~]',name_en)
+                ## English and Chinese names are in one field
+                #if ascii_ and name_ch == '':
+                #    name = ''.join(ascii_)
+                #    name_ch = name_en.replace(name, '')
+                #    name_en = name    
+                ## Chinese name is found in the English name
+                #elif ascii_ and name_ch != '':
+                #    name_en = ''.join(ascii_)
             except:
                 print(f'Warning: failed to scrape the name for restaurant: {link}')               
                 
@@ -578,9 +585,11 @@ def get_inputs():
                     name = row[col]
                 elif col == 'Restaurant Location':
                     loc = row[col]
-                    res_search.append((name, loc))
                 else:
                     settings[col] = row[col]
+
+            if name != '' or loc != '':
+                res_search.append((name, loc))
     except:
         print('Error: Failed to process the settings sheet')
         input('Press any key to exit')
