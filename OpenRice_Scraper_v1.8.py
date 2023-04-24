@@ -32,7 +32,7 @@ def initialize_bot():
     ver = int(driver.capabilities['chrome']['chromedriverVersion'].split('.')[0])
     driver.quit()
     chrome_options = uc.ChromeOptions()
-    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless=new')
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
     chrome_options.add_argument('--log-level=3')
     chrome_options.add_argument("--enable-javascript")
@@ -40,14 +40,14 @@ def initialize_bot():
     chrome_options.add_argument("--incognito")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.page_load_strategy = 'eager'
+    chrome_options.page_load_strategy = 'normal'
     # disable location prompts & disable images loading
     prefs = {"profile.default_content_setting_values.geolocation": 2, "profile.managed_default_content_settings.images": 2}
     chrome_options.add_experimental_option("prefs", prefs)
     driver = uc.Chrome(version_main = ver, options=chrome_options) 
     driver.set_window_size(1920, 1080, driver.window_handles[0])
     driver.maximize_window()
-    driver.set_page_load_timeout(300)
+    driver.set_page_load_timeout(20000)
 
     return driver
 
@@ -93,6 +93,11 @@ def scrape_restaurants(driver, output1, output2, page, settings):
         time.sleep(3)
 
         res_limit = settings['Restaurants Limit']
+        # scraping restaurants urls
+        if 'new-restaurants' in page:
+            selector =  "a.poi-list-cell-info-title"
+        else:
+            selector = 'a.chart-poi-name'
         # processing the lazy loading of the restaurants
         while True:  
             try:
@@ -101,20 +106,18 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                 time.sleep(5)
                 height2 = driver.execute_script("return document.body.scrollHeight")
                 restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
-                if len(restaurants) >= res_limit: 
+                if len(restaurants) >= res_limit and res_limit > 0: 
                     break
                 if int(height2) == int(height1):
                     break
             except Exception as err:
                 break
 
-        # getting the full restaurants list
-        # scraping restaurants urls
-        if 'new-restaurants' in page:
-            selector =  "a.poi-list-cell-info-title"
-        else:
-            selector = 'a.chart-poi-name'
-        restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))[:res_limit]
+        # getting the full restaurants list      
+        restaurants = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
+        # applying the limit
+        if res_limit > 0:
+            restaurants = restaurants[:res_limit]
         nres = 0
         for res in restaurants:
             try:
