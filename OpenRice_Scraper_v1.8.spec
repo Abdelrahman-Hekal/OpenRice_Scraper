@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(
-    ['D:\\Hekal\\Personal\\Freelancing\\Scrape_OpenRice\\OpenRice_Scraper_v1.7.py'],
+    ['D:\\Hekal\\Personal\\Freelancing\\Scrape_OpenRice\\OpenRice_Scraper_v1.8.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -28,7 +28,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='OpenRice_Scraper_v1.7',
+    name='OpenRice_Scraper_v1.8',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
