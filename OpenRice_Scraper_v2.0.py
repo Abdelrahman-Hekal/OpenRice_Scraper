@@ -424,8 +424,10 @@ def scrape_restaurants(driver, output1, output2, page, settings):
             #print(str(err))
            
     # output to excel
-    data['Extration Date'] = pd.to_datetime(data['Extration Date'])
-    reviews['Extration Date'] = pd.to_datetime(reviews['Extration Date'])
+    if data.shape[0] > 0:
+        data['Extration Date'] = pd.to_datetime(data['Extration Date'])
+    if reviews.shape[0] > 0:
+        reviews['Extration Date'] = pd.to_datetime(reviews['Extration Date'])
     df1 = pd.read_excel(output1)
     df2 = pd.read_excel(output2)
     df1 = df1.append(data)
