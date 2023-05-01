@@ -173,10 +173,15 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                 #    name = ''.join(asian2)
                 #    name_en = name_en.replace(name, '')
                 #    name_ch = name 
+                ################################################################
+                if name_en == '' and name_ch != '':
+                    name_en = name_ch
+                elif name_ch == '' and name_en != '':
+                    name_ch = name_en
             except:
                 print(f'Warning: failed to scrape the name for restaurant: {link}')               
                 
-            details['Extration Date'] = stamp
+            details['Extraction Date'] = stamp
             details['Name_Chinese'] = name_ch
             details['Name_English'] = name_en.replace('(' ,'').replace(')', '').strip()
                                     
@@ -292,7 +297,7 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                     driver.get(url)
                     end = False
                     nrevs = 0
-                    review['Extration Date'] = stamp
+                    review['Extraction Date'] = stamp
                     while True:
                         sections = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[itemprop='review']")))
                         for sec in sections:
@@ -425,9 +430,9 @@ def scrape_restaurants(driver, output1, output2, page, settings):
            
     # output to excel
     if data.shape[0] > 0:
-        data['Extration Date'] = pd.to_datetime(data['Extration Date'])
+        data['Extraction Date'] = pd.to_datetime(data['Extraction Date'])
     if reviews.shape[0] > 0:
-        reviews['Extration Date'] = pd.to_datetime(reviews['Extration Date'])
+        reviews['Extraction Date'] = pd.to_datetime(reviews['Extraction Date'])
     df1 = pd.read_excel(output1)
     df2 = pd.read_excel(output2)
     df1 = df1.append(data)
