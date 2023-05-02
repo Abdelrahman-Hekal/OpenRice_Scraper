@@ -181,9 +181,8 @@ def scrape_restaurants(driver, output1, output2, page, settings):
             except:
                 print(f'Warning: failed to scrape the name for restaurant: {link}')               
                 
-            details['Extraction Date'] = stamp
             details['Name_Chinese'] = name_ch
-            details['Name_English'] = name_en.replace('(' ,'').replace(')', '').strip()
+            details['Name_English'] = name_en
                                     
             # Price range 
             price = ''
@@ -289,6 +288,7 @@ def scrape_restaurants(driver, output1, output2, page, settings):
             else:
                 details['Restaurant_Type'] = res_type
 
+            details['Extraction Date'] = stamp
             ## scraping restaurants reviews
             if settings["Scrape Reviews"] != 0:
                 rev_limit = settings["Reviews Limit"]
@@ -297,7 +297,6 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                     driver.get(url)
                     end = False
                     nrevs = 0
-                    review['Extraction Date'] = stamp
                     while True:
                         sections = wait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[itemprop='review']")))
                         for sec in sections:
@@ -398,6 +397,7 @@ def scrape_restaurants(driver, output1, output2, page, settings):
                                         review[name + '_Score'] = score
                                 except:
                                     pass
+                                review['Extraction Date'] = stamp
                                 reviews = reviews.append([review.copy()])
                                 nrevs += 1
                                 if nrevs == rev_limit:
